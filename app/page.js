@@ -1,8 +1,35 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import styles from "./page.module.css";
-import { formatarDistancia, haversine, tempoCaminhadaMinutos } from "../lib/geodesia";
+import {
+  formatarDistancia,
+  haversine,
+  tempoCaminhadaMinutos,
+} from "../lib/geodesia";
+
+const MapaInterativo = dynamic(() => import("../components/MapaNavegacao"), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#020617",
+        color: "#64748b",
+        borderRadius: 14,
+      }}
+    >
+      Carregando mapa...
+    </div>
+  ),
+});
+
+const PRECISAO_MAXIMA_METROS = 30;
+const DESLOCAMENTO_MINIMO_METROS = 10;
 
 export default function Home() {
   const [leitura, setLeitura] = useState(null);
@@ -263,7 +290,8 @@ export default function Home() {
             {distancia.toFixed(2)} metros entre o Ponto A e o Ponto B
           </span>
           <span className={styles.distanciaSub}>
-            Caminhada a 5 km/h: {tempoCaminhadaMinutos(distancia).toFixed(1)} minutos
+            Caminhada a 5 km/h: {tempoCaminhadaMinutos(distancia).toFixed(1)}{" "}
+            minutos
           </span>
         </section>
       )}
