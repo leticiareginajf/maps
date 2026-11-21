@@ -1,12 +1,94 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import styles from "./page.module.css";
+import { formatarDistancia, haversine, tempoCaminhadaMinutos } from "../lib/geodesia";
 
 export default function Home() {
   const [leitura, setLeitura] = useState(null);
   const [buscando, setBuscando] = useState(false);
   const [erro, setErro] = useState(null);
+
+  // PONTO A E PONTO B
+  const [pontoA, setPontoA] = useState(null);
+  const [pontoB, setPontoB] = useState(null);
+
+  function capturarPontoGPS() {
+    if (!navigator.geolocation) {
+      setErro("Este navegador não possui suporte à Geolocation API.");
+      return;
+    }
+
+    setBuscando(true);
+    setErro(null);
+
+    function callbackSucesso(posicao) {
+      const coords = posicao.coords;
+      const novoPonto = {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        precisao: coords.accuracy,
+        horario: new Date(posicao.timestamp).toLocaleTimeString("pt-BR"),
+      };
+
+      if (alvo === "A") {
+        setPontoA(novoPonto);
+        setAlvo("B"); // avança automaticamente a seleção para o Ponto B
+      } else {
+        setPontoB(novoPonto);
+      }
+      setBuscando(false);
+    }
+
+    function callbackErro(erroHardware) {
+      setErro(
+        `Falha ao ler o GPS (código ${erroHardware.code}): ${erroHardware.message}`,
+      );
+      setBuscando(false);
+    }
+
+    const opcoesConfig = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      callbackSucesso,
+      callbackErro,
+      opcoesConfig,
+    );
+  }
+
+  function limparPontos() {
+    setPontoA(null);
+    setPontoB(null);
+    setAlvo("A");
+    setErro(null);
+  }
+
+  const [largura, setLargura] = useState(10);
+  const [comprimento, setComprimento] = useState(25);
+
+  const area = useMemo(() => {
+    return largura * comprimento;
+  }, [largura, comprimento]);
+
+  function calcularDistancia() {
+    // devolve null (se faltar algum ponto) ou o número em metros
+    console.log("Calculando distância entre pontos A e B...");
+  }
+
+  const distancia = useMemo(() => {
+    if (!pontoA || !pontoB) return null;
+
+    return haversine(
+      pontoA.latitude,
+      pontoA.longitude,
+      pontoB.latitude,
+      pontoB.longitude,
+    );
+  }, [pontoA, pontoB]);
 
   // Tradução amigável dos erros do GPS
   function traduzirErroGPS(erroHardware) {
@@ -61,18 +143,27 @@ export default function Home() {
     };
 
     // Passo 2: o pedido ao hardware
-    navigator.geolocation.getCurrentPosition(callbackSucesso, callbackErro, opcoesConfig);
+    navigator.geolocation.getCurrentPosition(
+      callbackSucesso,
+      callbackErro,
+      opcoesConfig,
+    );
   }
 
   // Monta a URL do OpenStreetMap com Bounding Box (~1 km²)
-  function montarUrlMapa(lat, lng) {
-    const delta = 0.005;
-    const minLon = lng - delta;
-    const minLat = lat - delta;
-    const maxLon = lng + delta;
-    const maxLat = lat + delta;
+  function montarUrlMapa() {
+    const pontos = [pontoA, pontoB].filter(Boolean);
+    if (pontos.length === 0) return null;
 
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${minLon},${minLat},${maxLon},${maxLat}&layer=mapnik&marker=${lat},${lng}`;
+    const lats = pontos.map((p) => p.latitude);
+    const lons = pontos.map((p) => p.longitude);
+    const minLat = Math.min(...lats) - 0.002;
+    const maxLat = Math.max(...lats) + 0.002;
+    const minLon = Math.min(...lons) - 0.002;
+    const maxLon = Math.max(...lons) + 0.002;
+
+    const pino = pontoB || pontoA;
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${minLon},${minLat},${maxLon},${maxLat}&layer=mapnik&marker=${pino.latitude},${pino.longitude}`;
   }
 
   return (
@@ -82,7 +173,8 @@ export default function Home() {
         <span className={styles.tagDisciplina}>SIG-Web • Aula 04.1</span>
         <h1 className={styles.titulo}>Coletor Geodésico GPS</h1>
         <p className={styles.subtitulo}>
-          Captura de coordenadas WGS 84 e renderização cartográfica via PWA (Prof. José Rui).
+          Captura de coordenadas WGS 84 e renderização cartográfica via PWA
+          (Prof. José Rui).
         </p>
       </header>
 
@@ -103,7 +195,9 @@ export default function Home() {
       {leitura && (
         <section className={styles.cartao}>
           <div className={styles.cartaoTopo}>
-            <span className={styles.cartaoTitulo}>Fix de Satélite (WGS 84)</span>
+            <span className={styles.cartaoTitulo}>
+              Fix de Satélite (WGS 84)
+            </span>
             <span className={styles.badgePrecisao}>
               Precisão: ±{leitura.precisao.toFixed(1)} m
             </span>
@@ -112,18 +206,24 @@ export default function Home() {
           <div className={styles.gridCoordenadas}>
             <div className={styles.itemDado}>
               <span className={styles.labelDado}>Latitude</span>
-              <span className={styles.valorDado}>{leitura.latitude.toFixed(6)}°</span>
+              <span className={styles.valorDado}>
+                {leitura.latitude.toFixed(6)}°
+              </span>
             </div>
 
             <div className={styles.itemDado}>
               <span className={styles.labelDado}>Longitude</span>
-              <span className={styles.valorDado}>{leitura.longitude.toFixed(6)}°</span>
+              <span className={styles.valorDado}>
+                {leitura.longitude.toFixed(6)}°
+              </span>
             </div>
 
             <div className={styles.itemDado}>
               <span className={styles.labelDado}>Altitude</span>
               <span className={styles.valorDado}>
-                {leitura.altitude !== null ? `${leitura.altitude.toFixed(1)} m` : "N/D"}
+                {leitura.altitude !== null
+                  ? `${leitura.altitude.toFixed(1)} m`
+                  : "N/D"}
               </span>
             </div>
 
@@ -132,7 +232,6 @@ export default function Home() {
               <span className={styles.valorDado}>{leitura.horario}</span>
             </div>
           </div>
-
         </section>
       )}
 
@@ -149,6 +248,23 @@ export default function Home() {
             className={styles.mapaIframe}
             loading="lazy"
           />
+        </section>
+      )}
+
+      {distancia !== null && (
+        <section className={styles.cartaoDistancia}>
+          <span className={styles.distanciaTitulo}>
+            Distância Geodésica (Haversine)
+          </span>
+          <span className={styles.distanciaValor}>
+            {formatarDistancia(distancia)}
+          </span>
+          <span className={styles.distanciaSub}>
+            {distancia.toFixed(2)} metros entre o Ponto A e o Ponto B
+          </span>
+          <span className={styles.distanciaSub}>
+            Caminhada a 5 km/h: {tempoCaminhadaMinutos(distancia).toFixed(1)} minutos
+          </span>
         </section>
       )}
 
