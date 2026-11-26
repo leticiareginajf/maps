@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "SIG-Web - Coletor GPS",
-  description: "Captura de coordenadas GPS em campo (Prof. José Rui)",
+  title: "SIG-Web - Coletor GPS - Leticia Honório",
+  description: "Captura de coordenadas GPS em campo - Aluna Leticia Honório",
   manifest: "/manifest.json",
 };
 
