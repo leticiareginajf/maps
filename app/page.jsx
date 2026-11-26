@@ -80,9 +80,9 @@ export default function Home() {
       {/* 1. Cabeçalho Didático */}
       <header className={styles.cabecalho}>
         <span className={styles.tagDisciplina}>SIG-Web • Aula 04.1</span>
-        <h1 className={styles.titulo}>Coletor Geodésico GPS</h1>
+        <h1 className={styles.titulo}>Coletor Geodésico GPS - Aluna Leticia Honório</h1>
         <p className={styles.subtitulo}>
-          Captura de coordenadas WGS 84 e renderização cartográfica via PWA (Prof. José Rui).
+          Captura de coordenadas WGS 84 e renderização cartográfica via PWA - Aluna Leticia Honório.
         </p>
       </header>
 
