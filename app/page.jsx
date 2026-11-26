@@ -1,121 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import dynamic from "next/dynamic";
+import { useState } from "react";
 import styles from "./page.module.css";
-import {
-  formatarDistancia,
-  haversine,
-  tempoCaminhadaMinutos,
-} from "../lib/geodesia";
-
-const MapaInterativo = dynamic(() => import("../components/MapaNavegacao"), {
-  ssr: false,
-  loading: () => (
-    <div
-      style={{
-        height: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#020617",
-        color: "#64748b",
-        borderRadius: 14,
-      }}
-    >
-      Carregando mapa...
-    </div>
-  ),
-});
-
-const PRECISAO_MAXIMA_METROS = 30;
-const DESLOCAMENTO_MINIMO_METROS = 10;
 
 export default function Home() {
   const [leitura, setLeitura] = useState(null);
   const [buscando, setBuscando] = useState(false);
   const [erro, setErro] = useState(null);
-
-  // PONTO A E PONTO B
-  const [pontoA, setPontoA] = useState(null);
-  const [pontoB, setPontoB] = useState(null);
-
-  function capturarPontoGPS() {
-    if (!navigator.geolocation) {
-      setErro("Este navegador não possui suporte à Geolocation API.");
-      return;
-    }
-
-    setBuscando(true);
-    setErro(null);
-
-    function callbackSucesso(posicao) {
-      const coords = posicao.coords;
-      const novoPonto = {
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-        precisao: coords.accuracy,
-        horario: new Date(posicao.timestamp).toLocaleTimeString("pt-BR"),
-      };
-
-      if (alvo === "A") {
-        setPontoA(novoPonto);
-        setAlvo("B"); // avança automaticamente a seleção para o Ponto B
-      } else {
-        setPontoB(novoPonto);
-      }
-      setBuscando(false);
-    }
-
-    function callbackErro(erroHardware) {
-      setErro(
-        `Falha ao ler o GPS (código ${erroHardware.code}): ${erroHardware.message}`,
-      );
-      setBuscando(false);
-    }
-
-    const opcoesConfig = {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0,
-    };
-
-    navigator.geolocation.getCurrentPosition(
-      callbackSucesso,
-      callbackErro,
-      opcoesConfig,
-    );
-  }
-
-  function limparPontos() {
-    setPontoA(null);
-    setPontoB(null);
-    setAlvo("A");
-    setErro(null);
-  }
-
-  const [largura, setLargura] = useState(10);
-  const [comprimento, setComprimento] = useState(25);
-
-  const area = useMemo(() => {
-    return largura * comprimento;
-  }, [largura, comprimento]);
-
-  function calcularDistancia() {
-    // devolve null (se faltar algum ponto) ou o número em metros
-    console.log("Calculando distância entre pontos A e B...");
-  }
-
-  const distancia = useMemo(() => {
-    if (!pontoA || !pontoB) return null;
-
-    return haversine(
-      pontoA.latitude,
-      pontoA.longitude,
-      pontoB.latitude,
-      pontoB.longitude,
-    );
-  }, [pontoA, pontoB]);
 
   // Tradução amigável dos erros do GPS
   function traduzirErroGPS(erroHardware) {
@@ -178,19 +69,14 @@ export default function Home() {
   }
 
   // Monta a URL do OpenStreetMap com Bounding Box (~1 km²)
-  function montarUrlMapa() {
-    const pontos = [pontoA, pontoB].filter(Boolean);
-    if (pontos.length === 0) return null;
+  function montarUrlMapa(lat, lng) {
+    const delta = 0.005;
+    const minLon = lng - delta;
+    const minLat = lat - delta;
+    const maxLon = lng + delta;
+    const maxLat = lat + delta;
 
-    const lats = pontos.map((p) => p.latitude);
-    const lons = pontos.map((p) => p.longitude);
-    const minLat = Math.min(...lats) - 0.002;
-    const maxLat = Math.max(...lats) + 0.002;
-    const minLon = Math.min(...lons) - 0.002;
-    const maxLon = Math.max(...lons) + 0.002;
-
-    const pino = pontoB || pontoA;
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${minLon},${minLat},${maxLon},${maxLat}&layer=mapnik&marker=${pino.latitude},${pino.longitude}`;
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${minLon},${minLat},${maxLon},${maxLat}&layer=mapnik&marker=${lat},${lng}`;
   }
 
   return (
@@ -275,24 +161,6 @@ export default function Home() {
             className={styles.mapaIframe}
             loading="lazy"
           />
-        </section>
-      )}
-
-      {distancia !== null && (
-        <section className={styles.cartaoDistancia}>
-          <span className={styles.distanciaTitulo}>
-            Distância Geodésica (Haversine)
-          </span>
-          <span className={styles.distanciaValor}>
-            {formatarDistancia(distancia)}
-          </span>
-          <span className={styles.distanciaSub}>
-            {distancia.toFixed(2)} metros entre o Ponto A e o Ponto B
-          </span>
-          <span className={styles.distanciaSub}>
-            Caminhada a 5 km/h: {tempoCaminhadaMinutos(distancia).toFixed(1)}{" "}
-            minutos
-          </span>
         </section>
       )}
 
